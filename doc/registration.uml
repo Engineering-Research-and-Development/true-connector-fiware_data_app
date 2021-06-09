@@ -1,0 +1,68 @@
+@startuml
+
+title Registration flow
+
+actor User
+
+participant ConsumerContextBroker as CCB
+participant ConsumerDataApp as CDA
+participant ConsumerECC as CECC
+participant ProviderECC as PECC
+participant ProviderDataApp as PDA
+participant ProviderContextBroker as PCB
+
+group Broker first
+	User -> CCB : send registration request\n/v2/registrations
+	note right
+		"entities": [
+	     {
+	        "id": "Room5",
+	        "type": "Room"
+	      }
+	    ],
+		"provider": {
+	    	"http": {
+	      	"url": **"http://mysensors.com/Rooms"**
+	       }
+	  	}
+	end note
+	CCB -> CCB : perform registration
+	CCB -> User : send response\nHeader - Location:\n/v2/registrations/5a82be3d093af1b94ac0f730
+	note right
+		Consumer Data App is not aware of forward URL
+	end note
+end group
+
+group dataApp first
+	User -> CDA : send registration
+	CDA -> CDA : rewrite URL in request with one of dataApp
+	CDA -> CCB : forward request with dataApp URL
+	CCB -> CCB : create registration
+	CCB -> CDA : send response\nHeader - Location:\n/v2/registrations/5a82be3d093af1b94ac0f730
+	CDA -> CDA : create mapping with original URL and registrationId from response
+	CDA -> User : send response back
+end group
+
+group Request data - Broker first
+	User -> CCB : send request for entity data
+	CCB -> CCB : trigger registration data
+	CCB -> CDA : forward request (dataApp URL is in registration)
+	note left
+		Forwards the query to the dataApp 
+		URL /v2/entities
+		(i.e., the URL used in the url field 
+		at registration time,
+		and adding "/entities" to the URL PATH)
+	end note
+	CDA -> CDA : HOW TO GET ORIGINAL URL????
+end group
+
+group Request data - DataApp first
+
+	User -> CDA : request data
+	CDA -> CDA : base on entityId, get original URL for data provider from dataApp storage
+	CDA -> CDA : create request, with Forward-To original URL
+	CDA -> CECC : send request...
+end group
+
+@enduml
