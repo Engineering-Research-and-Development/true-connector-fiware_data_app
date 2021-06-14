@@ -4,12 +4,72 @@ title Registration flow
 
 actor User
 
+box "Consumer Context Broker" #LightBlue
 participant ConsumerContextBroker as CCB
 participant ConsumerDataApp as CDA
 participant ConsumerECC as CECC
+end box
+
+box "Provider Context Broker"
 participant ProviderECC as PECC
 participant ProviderDataApp as PDA
 participant ProviderContextBroker as PCB
+end box
+
+group dataApp first
+	User -> CDA : send registration
+	note left
+		1. Header value:
+		**Forward-To: ecc-providr.com**
+		is mandatory so that Consumer Connector 
+		knows location of B-endoint for Provider Connector.
+		Request will contain URL of Provider Context Broker, so 
+		that Provider Data App knows where to forward request
+		2. Header value: 
+		**Provider-Context-Broker: provider.context.broker.com/** 
+		is mandatory so that Provider DataApp knows which provider CB
+		should sned request to.
+	end note
+	CDA -> CDA : rewrite URL in request with one of dataApp
+	CDA -> CCB : forward request with dataApp URL
+	CCB -> CCB : create registration
+	CCB -> CDA : send response\nHeader - Location:\n/v2/registrations/5a82be3d093af1b94ac0f730
+	CDA -> CDA : create mapping with original URL, Forward-To,\nentityId and registrationId from response
+	CDA -> User : send response back
+end group
+
+group Request data - DataApp first
+
+	User -> CDA : request data
+	CDA -> CDA : base on entityId, get original URL for data provider from dataApp storage
+	CDA -> CDA : create request, with Forward-To original URL
+	CDA -> CECC : send request...
+end group
+
+
+group Registration Request
+	User -> CCB : get Entity
+	CCB -> CDA : forward request since CDA URL is in Registration 
+	note left
+		/registration 
+		so that DataApp knows it is registration/forward/* request
+	end note
+	 	CDA -> CDA : get Fowrard-To and Provider-Context-Broker URL from storage
+	 	CDA -> CECC : Forward-To
+	 	CECC -> PECC : Forward request
+	 	PECC -> PDA : Forward request
+	 	PDA -> PDA : get Provider Context Broker from request
+	 	PDA -> PDA : create request for Provider Context Broker\nfrom payload data (GET, PATCH, PUT)
+	 	PDA -> PCB : trigger request towards Provider Context Broker
+	 	PCB -> PDA : send response
+	 	PDA -> PDA : prepare response for sending, get Forward-To from request
+	 	PDA -> PECC : send response
+	 	PECC -> CECC : forward response
+	 	CECC -> CDA : forward response
+		CDA -> CCB : send response
+end group
+
+== Not applicable scenarions ==
 
 group Broker first
 	User -> CCB : send registration request\n/v2/registrations
@@ -33,16 +93,6 @@ group Broker first
 	end note
 end group
 
-group dataApp first
-	User -> CDA : send registration
-	CDA -> CDA : rewrite URL in request with one of dataApp
-	CDA -> CCB : forward request with dataApp URL
-	CCB -> CCB : create registration
-	CCB -> CDA : send response\nHeader - Location:\n/v2/registrations/5a82be3d093af1b94ac0f730
-	CDA -> CDA : create mapping with original URL and registrationId from response
-	CDA -> User : send response back
-end group
-
 group Request data - Broker first
 	User -> CCB : send request for entity data
 	CCB -> CCB : trigger registration data
@@ -57,12 +107,5 @@ group Request data - Broker first
 	CDA -> CDA : HOW TO GET ORIGINAL URL????
 end group
 
-group Request data - DataApp first
-
-	User -> CDA : request data
-	CDA -> CDA : base on entityId, get original URL for data provider from dataApp storage
-	CDA -> CDA : create request, with Forward-To original URL
-	CDA -> CECC : send request...
-end group
 
 @enduml

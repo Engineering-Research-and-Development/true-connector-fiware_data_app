@@ -8,13 +8,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import it.eng.idsa.dataapp.model.OrionRequest;
 import it.eng.idsa.dataapp.service.MultiPartMessageService;
+import it.eng.idsa.dataapp.service.OrionContextBrokerService;
 import it.eng.idsa.dataapp.util.MessageUtil;
 
 @RestController
@@ -25,10 +30,13 @@ public class DataControllerBodyForm {
 	private MultiPartMessageService multiPartMessageService;
 	private MessageUtil messageUtil;
 	
+	private OrionContextBrokerService orionService;
+	
 	public DataControllerBodyForm(MultiPartMessageService multiPartMessageService,
-			MessageUtil messageUtil) {
+			MessageUtil messageUtil, OrionContextBrokerService orionService) {
 		this.multiPartMessageService= multiPartMessageService;
 		this.messageUtil = messageUtil;
+		this.orionService = orionService;
     }
 
 	@PostMapping(value = "/data")
@@ -48,16 +56,27 @@ public class DataControllerBodyForm {
 		} else {
 			logger.info("Payload is empty");
 		}
+		
+		ObjectMapper mapper = new ObjectMapper();
 
+		OrionRequest orionRequest = mapper.readValue(payload, OrionRequest.class);
+		ResponseEntity<String> response = orionService.enitityCall(orionRequest);
+
+		// TODO handle response from Orion?
+		
+		OrionRequest orionResponse = new OrionRequest(response.getBody(), HttpMethod.GET, 
+				response.getHeaders(), orionRequest.getRequestPath());
+		
 		// prepare body response - multipart message.
 		HttpEntity resultEntity = multiPartMessageService.createMultipartMessageForm(
 				multiPartMessageService.getResponseHeader(header),
-				messageUtil.createResponsePayload(header),
+				mapper.writeValueAsString(orionResponse),
 				null,
 				ContentType.APPLICATION_JSON);
 
 		return ResponseEntity.ok().header("foo", "bar")
-				.header(resultEntity.getContentType().getName(), resultEntity.getContentType().getValue())
+				.header(resultEntity.getContentType().getName(), 
+						resultEntity.getContentType().getValue())
 				.body(resultEntity.getContent().readAllBytes());
 	}
 }
