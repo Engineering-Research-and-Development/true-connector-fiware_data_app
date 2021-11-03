@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
@@ -49,6 +48,7 @@ import it.eng.idsa.dataapp.service.MultiPartMessageService;
 import it.eng.idsa.multipart.domain.MultipartMessage;
 import it.eng.idsa.multipart.processor.MultipartMessageProcessor;
 import it.eng.idsa.multipart.util.DateUtil;
+import it.eng.idsa.multipart.util.UtilMessageService;
 
 /**
  *
@@ -61,7 +61,6 @@ import it.eng.idsa.multipart.util.DateUtil;
  * Service Implementation for managing MultiPartMessage.
  */
 @Service
-@Transactional
 public class MultiPartMessageServiceImpl implements MultiPartMessageService {
 
 	private static final Logger logger = LoggerFactory.getLogger(MultiPartMessageServiceImpl.class);
@@ -316,9 +315,11 @@ public class MultiPartMessageServiceImpl implements MultiPartMessageService {
 		return new ArtifactResponseMessageBuilder()
 				._issuerConnector_(whoIAmEngRDProvider())
 				._issued_(DateUtil.now())
-				._modelVersion_(informationModelVersion)
+				._modelVersion_(UtilMessageService.MODEL_VERSION)
+				._senderAgent_(whoIAmEngRDProvider())
 				._recipientConnector_(header != null ? asList(header.getIssuerConnector()) : asList(whoIAm()))
 				._correlationMessage_(header != null ? header.getId() : whoIAm())
+				._securityToken_(UtilMessageService.getDynamicAttributeToken())
 				.build();
 	}
 	
@@ -411,7 +412,7 @@ public class MultiPartMessageServiceImpl implements MultiPartMessageService {
 	}
 
     public static String serializeMessage(Object message) throws IOException {
-        return MultipartMessageProcessor.serializeToPlainJson(message);
+        return MultipartMessageProcessor.serializeToJsonLD(message);
     }
 
 }

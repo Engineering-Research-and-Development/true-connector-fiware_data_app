@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 
 /**
  * Class to wrap up original request, so it can be sent via Connectors, and recreated at other side
@@ -18,6 +19,7 @@ public class OrionRequest implements Serializable {
 	private HttpMethod method;
 	private HttpHeaders headers;
 	private String requestPath;
+	private HttpStatus statusCode;
 	
 	public OrionRequest() {}
 	
@@ -29,6 +31,24 @@ public class OrionRequest implements Serializable {
 		this.requestPath = requestPath;
 	}
 	
+	/**
+	 * Used in response flow, including status code
+	 * @param originalPayload
+	 * @param method
+	 * @param headers
+	 * @param requestPath
+	 * @param statusCode
+	 */
+	public OrionRequest(String originalPayload, HttpMethod method, HttpHeaders headers, String requestPath,
+			HttpStatus statusCode) {
+		super();
+		this.originalPayload = originalPayload;
+		this.method = method;
+		this.headers = headers;
+		this.requestPath = requestPath;
+		this.statusCode = statusCode;
+	}
+
 	public String getOriginalPayload() {
 		return originalPayload;
 	}
@@ -53,7 +73,11 @@ public class OrionRequest implements Serializable {
 	public void setRequestPath(String requestPath) {
 		this.requestPath = requestPath;
 	}
-	
-	
+	public HttpStatus getStatusCode() {
+		return statusCode;
+	}
+	public void setStatusCode(HttpStatus statusCode) {
+		this.statusCode = statusCode;
+	}
 	
 }

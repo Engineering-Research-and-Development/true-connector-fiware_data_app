@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -20,7 +19,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.eng.idsa.dataapp.model.OrionRequest;
 import it.eng.idsa.dataapp.service.MultiPartMessageService;
 import it.eng.idsa.dataapp.service.OrionContextBrokerService;
-import it.eng.idsa.dataapp.util.MessageUtil;
 
 @RestController
 @ConditionalOnProperty(name = "application.dataapp.http.config", havingValue = "form")
@@ -28,14 +26,12 @@ public class DataControllerBodyForm {
 	private static final Logger logger = LoggerFactory.getLogger(DataControllerBodyForm.class);
 
 	private MultiPartMessageService multiPartMessageService;
-	private MessageUtil messageUtil;
 	
 	private OrionContextBrokerService orionService;
 	
 	public DataControllerBodyForm(MultiPartMessageService multiPartMessageService,
-			MessageUtil messageUtil, OrionContextBrokerService orionService) {
-		this.multiPartMessageService= multiPartMessageService;
-		this.messageUtil = messageUtil;
+			OrionContextBrokerService orionService) {
+		this.multiPartMessageService = multiPartMessageService;
 		this.orionService = orionService;
     }
 
@@ -62,12 +58,12 @@ public class DataControllerBodyForm {
 		OrionRequest orionRequest = mapper.readValue(payload, OrionRequest.class);
 		ResponseEntity<String> response = orionService.enitityCall(orionRequest);
 
-		// TODO handle response from Orion?
+		OrionRequest orionResponse = new OrionRequest(response.getBody(), orionRequest.getMethod(), 
+				response.getHeaders(), orionRequest.getRequestPath(), response.getStatusCode());
 		
-		OrionRequest orionResponse = new OrionRequest(response.getBody(), HttpMethod.GET, 
-				response.getHeaders(), orionRequest.getRequestPath());
-		
-		// prepare body response - multipart message.
+		// TODO create proper response message, depending on result operation
+		// ArifactResponseMessage for GET - returning data ?
+		// ResponseMessage - for all other operations
 		HttpEntity resultEntity = multiPartMessageService.createMultipartMessageForm(
 				multiPartMessageService.getResponseHeader(header),
 				mapper.writeValueAsString(orionResponse),

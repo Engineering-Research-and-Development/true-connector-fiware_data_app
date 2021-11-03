@@ -4,7 +4,8 @@ import java.net.URI;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -27,7 +28,17 @@ public class OrionContextBrokerServiceImpl implements OrionContextBrokerService 
 	public ResponseEntity<String> enitityCall(OrionRequest orionRequest) {
 		URI orionURI = URI.create("http://localhost:1026" + orionRequest.getRequestPath());
 		logger.info("Triggering request towards {}", orionURI);
-		return restTemplate.exchange(orionURI, HttpMethod.GET, null, String.class);
+
+		HttpHeaders headers = new HttpHeaders();
+		HttpEntity<String> request;
+		
+		logger.info("Executing {} request", orionRequest.getMethod());
+		headers = orionRequest.getHeaders();
+		headers.remove("Forward-To");
+		request = new HttpEntity<String>(orionRequest.getOriginalPayload(), headers);
+		ResponseEntity<String> response = restTemplate.exchange(orionURI, orionRequest.getMethod(), request, String.class);
+		logger.info("Response received {}\n with status code {}", response.getBody(), response.getStatusCode());
+		return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
 	}
 
 }

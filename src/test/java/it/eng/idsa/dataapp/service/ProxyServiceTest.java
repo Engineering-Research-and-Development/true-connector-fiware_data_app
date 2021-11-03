@@ -33,6 +33,7 @@ import it.eng.idsa.dataapp.configuration.ECCProperties;
 import it.eng.idsa.dataapp.domain.ProxyRequest;
 import it.eng.idsa.dataapp.service.impl.MultiPartMessageServiceImpl;
 import it.eng.idsa.dataapp.service.impl.ProxyServiceImpl;
+import it.eng.idsa.multipart.util.UtilMessageService;
 
 public class ProxyServiceTest {
 
@@ -64,7 +65,7 @@ public class ProxyServiceTest {
 		MockitoAnnotations.initMocks(this);
 		when(restTemplateBuilder.build()).thenReturn(restTemplate);
 		service = new ProxyServiceImpl(restTemplateBuilder, eccProperties, multiPartMessageService, recreateFileService, dataLakeDirectory);
-		message = getMessageJson();
+		message = UtilMessageService.getMessageAsString(UtilMessageService.getArtifactRequestMessage());
 		when(eccProperties.getProtocol()).thenReturn("https");
 		when(eccProperties.getHost()).thenReturn("test.host");
 		when(eccProperties.getPort()).thenReturn(123);
@@ -274,25 +275,4 @@ public class ProxyServiceTest {
 				"}\r\n";
 	}
 
-	// TODO replace with java implementation or TestUtilMessageService
-	private String getMessageJson() {
-		return "{\r\n" + 
-				"	  \"@context\" : {\r\n" + 
-				"		\"ids\" : \"https://w3id.org/idsa/core/\"\r\n" + 
-				"	  },\r\n" + 
-				"	  \"@type\" : \"ids:ArtifactRequestMessage\",\r\n" + 
-				"	  \"@id\" : \"https://w3id.org/idsa/autogen/artifactRequestMessage/76481a41-8117-4c79-bdf4-9903ef8f825a\",\r\n" + 
-				"	  \"ids:issued\" : {\r\n" + 
-				"		\"@value\" : \"2020-11-25T16:43:27.051+01:00\",\r\n" + 
-				"		\"@type\" : \"http://www.w3.org/2001/XMLSchema#dateTimeStamp\"\r\n" + 
-				"	  },\r\n" + 
-				"	  \"ids:modelVersion\" : \"4.0.0\",\r\n" + 
-				"	  \"ids:issuerConnector\" : {\r\n" + 
-				"		\"@id\" : \"http://w3id.org/engrd/connector/\"\r\n" + 
-				"	  },\r\n" + 
-				"	  \"ids:requestedArtifact\" : {\r\n" + 
-				"	   \"@id\" : \"http://w3id.org/engrd/connector/artifact/1\"\r\n" + 
-				"	  }\r\n" + 
-				"	}";
-	}
 }

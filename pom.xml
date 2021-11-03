@@ -19,16 +19,21 @@
 		<java.version>11</java.version>
 		<tomcat.version>9.0.27</tomcat.version>
 		<start-class>it.eng.idsa.dataapp.ApplicationDataApp</start-class>
+		<!-- 
 		<information.model.version>4.0.0</information.model.version>
-		<websocket.message.streamer.version>1.0.10.1-SNAPSHOT</websocket.message.streamer.version>
-      	<multipart.message.processor.version>1.0.8-SNAPSHOT</multipart.message.processor.version>
+      	<multipart.message.processor.version>1.0.9-SNAPSHOT</multipart.message.processor.version>
+		<websocket.message.streamer.version>1.0.11-SNAPSHOT</websocket.message.streamer.version>
+		 -->
+ 		<information.model.version>4.1.1</information.model.version>
+      	<multipart.message.processor.version>1.0.12-SNAPSHOT</multipart.message.processor.version>
+		<websocket.message.streamer.version>1.0.14-SNAPSHOT</websocket.message.streamer.version>
 	</properties>
 	
  	<repositories> 
 		<repository> 
 			<id>snapshots</id> 
 			<name>maven-snapshots</name> 
-			<url>http://maven.iais.fraunhofer.de/artifactory/eis-ids-public</url> 
+			<url>https://maven.iais.fraunhofer.de/artifactory/eis-ids-public</url> 
 		</repository> 
 	</repositories>
 	
@@ -44,10 +49,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
+		<!--
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
+		-->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
@@ -91,13 +98,15 @@
             <groupId>ch.qos.logback</groupId>
 		</dependency>
 		
-		<!-- H2 database -->
+		<!-- H2 database
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
 		</dependency>
+		 -->
 
 		<!-- Fraunhofer -->
+		<!-- 
 		<dependency>
 			<groupId>de.fraunhofer.iais.eis.ids.infomodel</groupId>
 			<artifactId>java</artifactId>
@@ -108,7 +117,18 @@
 			<artifactId>infomodel-serializer</artifactId>
 			<version>${information.model.version}</version>
 		</dependency>
-		
+		 -->
+		<dependency>
+            <groupId>de.fraunhofer.iais.eis.ids.infomodel</groupId>
+            <artifactId>java</artifactId>
+            <version>${information.model.version}</version>
+        </dependency>
+		<dependency>
+		    <groupId>de.fraunhofer.iais.eis.ids.infomodel</groupId>
+		    <artifactId>validation-serialization-provider</artifactId>
+		    <version>${information.model.version}</version>
+		</dependency>	
+			
 		<!-- it.eng.idsa -->
 		<dependency>
 			<groupId>it.eng.idsa</groupId>
@@ -143,6 +163,15 @@
 		                <groupId>org.slf4j</groupId>
 		            </exclusion>
 			</exclusions>
+		</dependency>
+		
+		<dependency>
+			<groupId>it.eng.idsa</groupId>
+			<artifactId>multipart-message-processor</artifactId>
+			<version>${multipart.message.processor.version}</version>
+			<classifier>tests</classifier>
+		    <type>test-jar</type>
+		    <scope>test</scope>
 		</dependency>
 
 		<dependency>
