@@ -8,8 +8,10 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import it.eng.idsa.dataapp.model.ContextBrokerException;
 import it.eng.idsa.dataapp.model.OrionRequest;
 import it.eng.idsa.dataapp.service.OrionContextBrokerService;
 
@@ -36,7 +38,13 @@ public class OrionContextBrokerServiceImpl implements OrionContextBrokerService 
 		headers = orionRequest.getHeaders();
 		headers.remove("Forward-To");
 		request = new HttpEntity<String>(orionRequest.getOriginalPayload(), headers);
-		ResponseEntity<String> response = restTemplate.exchange(orionURI, orionRequest.getMethod(), request, String.class);
+		
+		ResponseEntity<String> response;
+		try {
+			response = restTemplate.exchange(orionURI, orionRequest.getMethod(), request, String.class);
+		}catch (HttpStatusCodeException e) {
+			throw new ContextBrokerException(e, orionRequest.getMethod());
+		}
 		logger.info("Response received {}\n with status code {}", response.getBody(), response.getStatusCode());
 		return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
 	}

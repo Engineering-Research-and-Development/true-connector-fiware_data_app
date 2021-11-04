@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import it.eng.idsa.dataapp.domain.ProxyRequest;
 import it.eng.idsa.dataapp.model.OrionRequest;
-import it.eng.idsa.dataapp.service.OrionContextBrokerService;
 import it.eng.idsa.dataapp.service.ProxyService;
 import it.eng.idsa.multipart.processor.MultipartMessageProcessor;
 import it.eng.idsa.multipart.util.UtilMessageService;
@@ -34,9 +33,6 @@ import it.eng.idsa.multipart.util.UtilMessageService;
 public class OrionContextBrokerController {
 
 	private static final Logger logger = LoggerFactory.getLogger(OrionContextBrokerController.class);
-	
-	@Autowired
-	private OrionContextBrokerService orionService;
 	
 	@Autowired
 	private ProxyService proxyService;
@@ -66,11 +62,7 @@ public class OrionContextBrokerController {
 				getMessageAsString(UtilMessageService.getArtifactRequestMessage()), 
 				mapper.writeValueAsString(orionRequest), 
 				null, null);
-				return proxyService.proxyMultipartForm(proxyRequest, httpHeaders);
-		
-//		return orionService.enitityCall(orionRequest);
-		
-//		return ResponseEntity.ok("Done");
+		return proxyService.proxyMultipartForm(proxyRequest, httpHeaders);
 	}
 	
 	private String getMessageAsString(Object message) {
