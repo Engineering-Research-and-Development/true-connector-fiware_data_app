@@ -16,4 +16,6 @@ public interface ProxyService {
 	
 	ProxyRequest parseIncommingProxyRequest(String body);
 	ResponseEntity<String> proxyWSSRequest(ProxyRequest proxyRequest);
+	
+	ResponseEntity<String> convertToOrionResponse(ResponseEntity<String> resultEntity);
 }

@@ -63,7 +63,6 @@ public class ContextBrokerErrorHandler {
 
 	private Message createResultMessage(Message header) {
 //		Mandatory fields are: securityToken, correlationMessage, issuerConnector, senderAgent, modelVersion, issued
-
 		return new ResultMessageBuilder()
 				._issuerConnector_(whoIAmEngRDProvider())._issued_(DateUtil.now())
 				._modelVersion_("4.1.0")
@@ -78,24 +77,5 @@ public class ContextBrokerErrorHandler {
 	private URI whoIAmEngRDProvider() {
 		return URI.create("https://w3id.org/engrd/connector/provider");
 	}
-
-	/*
-	 * @ExceptionHandler(DataRetrievalException.class) public
-	 * ResponseEntity<JSONObject> handleDataRetrievalException( final
-	 * DataRetrievalException exception) { if (log.isDebugEnabled()) {
-	 * log.debug("Failed to retrieve data. [exception=({})]", exception == null ? ""
-	 * : exception.getMessage(), exception); }
-	 * 
-	 * final var headers = new HttpHeaders();
-	 * headers.setContentType(MediaType.APPLICATION_JSON);
-	 * 
-	 * final var body = new JSONObject(); body.put("message",
-	 * "Failed to retrieve data."); body.put("details", exception == null ? "" :
-	 * exception.getMessage());
-	 * 
-	 * return new ResponseEntity<>(body, headers, HttpStatus.EXPECTATION_FAILED); }
-	 * 
-	 * 
-	 */
 
 }

@@ -62,7 +62,7 @@ public class OrionContextBrokerController {
 				getMessageAsString(UtilMessageService.getArtifactRequestMessage()), 
 				mapper.writeValueAsString(orionRequest), 
 				null, null);
-		return proxyService.proxyMultipartForm(proxyRequest, httpHeaders);
+		return proxyService.convertToOrionResponse(proxyService.proxyMultipartForm(proxyRequest, httpHeaders));
 	}
 	
 	private String getMessageAsString(Object message) {

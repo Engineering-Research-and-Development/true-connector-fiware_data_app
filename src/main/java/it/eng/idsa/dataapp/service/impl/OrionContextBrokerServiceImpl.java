@@ -4,6 +4,7 @@ import java.net.URI;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -21,14 +22,17 @@ public class OrionContextBrokerServiceImpl implements OrionContextBrokerService 
 	private static final Logger logger = LoggerFactory.getLogger(OrionContextBrokerServiceImpl.class);
 
 	private RestTemplate restTemplate;
+	private String providerContextBrokerURL;
 	
-	public OrionContextBrokerServiceImpl(RestTemplate restTemplate) {
+	public OrionContextBrokerServiceImpl(RestTemplate restTemplate,
+			@Value("${application.fiware.contextBroker.provider.url}") String providerContextBrokerURL) {
 		this.restTemplate = restTemplate;
+		this.providerContextBrokerURL = providerContextBrokerURL;
 	}
 	
 	@Override
 	public ResponseEntity<String> enitityCall(OrionRequest orionRequest) {
-		URI orionURI = URI.create("http://localhost:1026" + orionRequest.getRequestPath());
+		URI orionURI = URI.create(providerContextBrokerURL + orionRequest.getRequestPath());
 		logger.info("Triggering request towards {}", orionURI);
 
 		HttpHeaders headers = new HttpHeaders();

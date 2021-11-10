@@ -37,7 +37,6 @@ import it.eng.idsa.dataapp.service.impl.MultiPartMessageServiceImpl;
 import it.eng.idsa.multipart.domain.MultipartMessage;
 import it.eng.idsa.multipart.processor.MultipartMessageProcessor;
 import it.eng.idsa.streamer.WebSocketClientManager;
-import it.eng.idsa.streamer.util.MultiPartMessageServiceUtil;
 import it.eng.idsa.streamer.websocket.receiver.server.FileRecreatorBeanExecutor;
 
 /**
@@ -148,10 +147,12 @@ public class FileSenderResource {
 	}
 	
 	private String saveFileToDisk(String responseMessage, String requestMessage) throws IOException {
-		Message requestMsg = multiPartMessageService.getMessage(requestMessage);
-		Message responseMsg = multiPartMessageService.getMessage(responseMessage);
-		logger.info("Response message: {} ", MultipartMessageProcessor.serializeToJsonLD(responseMsg));
-		String payload = MultiPartMessageServiceUtil.getPayload(responseMessage);
+		MultipartMessage request = MultipartMessageProcessor.parseMultipartMessage(requestMessage);
+		MultipartMessage response = MultipartMessageProcessor.parseMultipartMessage(responseMessage);
+		Message requestMsg = request.getHeaderContent();
+		Message responseMsg = response.getHeaderContent();;
+		logger.info("Response message: {} ", response.getHeaderContentString());
+		String payload = response.getPayloadContent();
 		logger.debug("Response payload: {} ", payload);
 
 		String requestedArtifact = null;
@@ -163,16 +164,16 @@ public class FileSenderResource {
 		} else {
 			logger.info("Did not have ArtifactRequestMessage and ResponseMessage - nothing to save");
 		}
-		
 		return requestedArtifact;
 	}
 	
 	private String saveFileToDisk(String responseMessage, Message requestMessage) throws IOException {
-		Message responseMsg = multiPartMessageService.getMessage(responseMessage);
+		MultipartMessage response = MultipartMessageProcessor.parseMultipartMessage(responseMessage);
+		Message responseMsg = response.getHeaderContent();
 
 		String requestedArtifact = null;
 		if (requestMessage instanceof ArtifactRequestMessage && responseMsg instanceof ArtifactResponseMessage) {
-			String payload = MultiPartMessageServiceUtil.getPayload(responseMessage);
+			String payload = response.getPayloadContent();
 			String reqArtifact = ((ArtifactRequestMessage) requestMessage).getRequestedArtifact().getPath();
 			// get resource from URI http://w3id.org/engrd/connector/artifact/ + requestedArtifact
 			requestedArtifact = reqArtifact.substring(reqArtifact.lastIndexOf('/') + 1);
@@ -183,8 +184,6 @@ public class FileSenderResource {
 			logger.info("Did not have ArtifactRequestMessage and ResponseMessage - nothing to save");
 			requestedArtifact = null;
 		}
-		
 		return requestedArtifact;
 	}
-
 }

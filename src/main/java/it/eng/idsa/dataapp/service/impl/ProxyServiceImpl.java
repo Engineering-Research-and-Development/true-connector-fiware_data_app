@@ -30,6 +30,9 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import de.fraunhofer.iais.eis.ArtifactRequestMessage;
 import de.fraunhofer.iais.eis.ArtifactRequestMessageBuilder;
 import de.fraunhofer.iais.eis.ArtifactResponseMessage;
@@ -37,6 +40,7 @@ import de.fraunhofer.iais.eis.Message;
 import de.fraunhofer.iais.eis.ids.jsonld.Serializer;
 import it.eng.idsa.dataapp.configuration.ECCProperties;
 import it.eng.idsa.dataapp.domain.ProxyRequest;
+import it.eng.idsa.dataapp.model.OrionRequest;
 import it.eng.idsa.dataapp.service.MultiPartMessageService;
 import it.eng.idsa.dataapp.service.ProxyService;
 import it.eng.idsa.dataapp.service.RecreateFileService;
@@ -44,7 +48,6 @@ import it.eng.idsa.multipart.builder.MultipartMessageBuilder;
 import it.eng.idsa.multipart.domain.MultipartMessage;
 import it.eng.idsa.multipart.processor.MultipartMessageProcessor;
 import it.eng.idsa.streamer.WebSocketClientManager;
-import it.eng.idsa.streamer.util.MultiPartMessageServiceUtil;
 import it.eng.idsa.streamer.websocket.receiver.server.FileRecreatorBeanExecutor;
 
 @Service
@@ -82,15 +85,10 @@ public class ProxyServiceImpl implements ProxyService {
 		JSONObject jsonObject;
 		try {
 			jsonObject = (JSONObject) parser.parse(body);
-			
 			String multipart =  (String) jsonObject.get(MULTIPART);
-			
 			String forwardTo =  (String) jsonObject.get(FORWARD_TO);
-			
 			String forwardToInternal =  (String) jsonObject.get(FORWARD_TO_INTERNAL);
-			
 			String requestedArtifact = (String) jsonObject.get(REQUESTED_ARTIFACT);
-			
 			JSONObject partJson = (JSONObject) jsonObject.get(MESSAGE);
 			String message =  partJson != null ? partJson.toJSONString().replace("\\/","/") : null;
 			
@@ -160,7 +158,7 @@ public class ProxyServiceImpl implements ProxyService {
 		logResponse(resp);
 		return resp;
 	}
-
+	
 	@Override
 	public ResponseEntity<String> proxyHttpHeader(ProxyRequest proxyRequest, HttpHeaders httpHeaders)
 			throws URISyntaxException {
@@ -230,29 +228,14 @@ public class ProxyServiceImpl implements ProxyService {
 		logger.info("Response body\n{}", resp.getBody());
 	}
 	
-	private String getPayloadPart(String payload, String part) {
-		JSONParser parser=new JSONParser();
-		JSONObject jsonObject;
-		try {
-			jsonObject = (JSONObject) parser.parse(payload);
-			if("multipart".equals(part)) {
-				return (String) jsonObject.get(part);
-			}
-			JSONObject partJson = (JSONObject) jsonObject.get(part);
-			return partJson.toJSONString().replace("\\/","/");
-		} catch (ParseException e) {
-			logger.error("Error parsing payoad", e);
-		}
-		return null;
-	}
-	
 	// TODO should we move this method to separate class?
 	private String saveFileToDisk(String responseMessage, Message requestMessage) throws IOException {
-		Message responseMsg = multiPartMessageService.getMessage(responseMessage);
+		MultipartMessage response = MultipartMessageProcessor.parseMultipartMessage(responseMessage);
+		Message responseMsg = response.getHeaderContent();
 
 		String requestedArtifact = null;
 		if (requestMessage instanceof ArtifactRequestMessage && responseMsg instanceof ArtifactResponseMessage) {
-			String payload = MultiPartMessageServiceUtil.getPayload(responseMessage);
+			String payload = response.getPayloadContent();
 			String reqArtifact = ((ArtifactRequestMessage) requestMessage).getRequestedArtifact().getPath();
 			// get resource from URI http://w3id.org/engrd/connector/artifact/ + requestedArtifact
 			requestedArtifact = reqArtifact.substring(reqArtifact.lastIndexOf('/') + 1);
@@ -290,5 +273,21 @@ public class ProxyServiceImpl implements ProxyService {
 		}
 		
 		return ResponseEntity.ok(responseMessage);
+	}
+
+	@Override
+	public ResponseEntity<String> convertToOrionResponse(ResponseEntity<String> resultEntity) {
+		ObjectMapper mapper = new ObjectMapper();
+		OrionRequest orionRequest = null;
+		MultipartMessage mMessage = MultipartMessageProcessor.parseMultipartMessage(resultEntity.getBody());
+		
+		try {
+			orionRequest = mapper.readValue(mMessage.getPayloadContent(), OrionRequest.class);
+		} catch (JsonProcessingException e) {
+			logger.error("Error while unpacking Orion response", e);
+		}
+		return ResponseEntity.ok()
+				.headers(orionRequest.getHeaders())
+				.body(orionRequest.getOriginalPayload());
 	}
 }
