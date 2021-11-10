@@ -41,7 +41,6 @@ import de.fraunhofer.iais.eis.ids.jsonld.Serializer;
 import it.eng.idsa.dataapp.configuration.ECCProperties;
 import it.eng.idsa.dataapp.domain.ProxyRequest;
 import it.eng.idsa.dataapp.model.OrionRequest;
-import it.eng.idsa.dataapp.service.MultiPartMessageService;
 import it.eng.idsa.dataapp.service.ProxyService;
 import it.eng.idsa.dataapp.service.RecreateFileService;
 import it.eng.idsa.multipart.builder.MultipartMessageBuilder;
@@ -65,16 +64,15 @@ public class ProxyServiceImpl implements ProxyService {
 
 	private RestTemplate restTemplate;
 	private ECCProperties eccProperties;
-	private MultiPartMessageService multiPartMessageService;
 	private RecreateFileService recreateFileService;
 	private String dataLakeDirectory;
 	
-	public ProxyServiceImpl(RestTemplateBuilder restTemplateBuilder,  ECCProperties eccProperties,
-			MultiPartMessageService multiPartMessageService, RecreateFileService recreateFileService,
+	public ProxyServiceImpl(RestTemplateBuilder restTemplateBuilder,  
+			ECCProperties eccProperties,
+			RecreateFileService recreateFileService,
 			@Value("${application.dataLakeDirectory}") String dataLakeDirectory) {
 		this.restTemplate = restTemplateBuilder.build();
 		this.eccProperties = eccProperties;
-		this.multiPartMessageService = multiPartMessageService;
 		this.recreateFileService = recreateFileService;
 		this.dataLakeDirectory = dataLakeDirectory;
 	}

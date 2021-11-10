@@ -11,6 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,9 @@ public class OrionContextBrokerController {
 	
 	@Autowired
 	private ProxyService proxyService;
+	
+	@Value("${application.fiware.ecc.provider.url}") 
+	private String providerURL;
 
 	@RequestMapping("/entities/**")
 	public ResponseEntity<?> proxyToOrionCB(@RequestHeader HttpHeaders httpHeaders,
@@ -56,7 +60,7 @@ public class OrionContextBrokerController {
 
 		ObjectMapper mapper = new ObjectMapper();
 		ProxyRequest proxyRequest = new ProxyRequest(ProxyRequest.MULTIPART_FORM, 
-				"https://localhost:8890/data", 
+				providerURL, 
 				null, 
 				// TODO update logic to pass some ID that will be used for UsageControl as requestedArtifact
 				getMessageAsString(UtilMessageService.getArtifactRequestMessage()), 

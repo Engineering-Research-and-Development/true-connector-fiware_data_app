@@ -31,7 +31,6 @@ import org.springframework.web.client.RestTemplate;
 
 import it.eng.idsa.dataapp.configuration.ECCProperties;
 import it.eng.idsa.dataapp.domain.ProxyRequest;
-import it.eng.idsa.dataapp.service.impl.MultiPartMessageServiceImpl;
 import it.eng.idsa.dataapp.service.impl.ProxyServiceImpl;
 import it.eng.idsa.multipart.util.UtilMessageService;
 
@@ -41,8 +40,6 @@ public class ProxyServiceTest {
 	private String message;
 
 	private ProxyServiceImpl service;
-	@Mock
-	private MultiPartMessageServiceImpl multiPartMessageService;
 	@Mock
 	private RecreateFileService recreateFileService;
 	@Mock
@@ -64,7 +61,7 @@ public class ProxyServiceTest {
 	public void init() {
 		MockitoAnnotations.initMocks(this);
 		when(restTemplateBuilder.build()).thenReturn(restTemplate);
-		service = new ProxyServiceImpl(restTemplateBuilder, eccProperties, multiPartMessageService, recreateFileService, dataLakeDirectory);
+		service = new ProxyServiceImpl(restTemplateBuilder, eccProperties, recreateFileService, dataLakeDirectory);
 		message = UtilMessageService.getMessageAsString(UtilMessageService.getArtifactRequestMessage());
 		when(eccProperties.getProtocol()).thenReturn("https");
 		when(eccProperties.getHost()).thenReturn("test.host");

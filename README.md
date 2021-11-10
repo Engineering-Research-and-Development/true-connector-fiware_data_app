@@ -122,6 +122,18 @@ http://localhost:1026/ngsi-ld/v1/entities/urn:ngsi-ld:Building:store001
 NOTE that port is 1026, for Consumer ContextBroker.
 
 
+##DataApp
+
+2 properties are used to configure connection:
+
+**application.fiware.contextBroker.provider.url=http://localhost:1027**
+
+Used to configure connection between provider DataApp and Provider Orion ContextBroker
+
+**application.fiware.ecc.provider.url=https://localhost:8890/data**
+
+Configure B-endpoint of Provider Connector (aka Forward-To)
+
 
 
 [![License: AGPL](https://img.shields.io/github/license/Engineering-Research-and-Development/true-connector-fiware_data_app.svg)](https://opensource.org/licenses/AGPL-3.0)
