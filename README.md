@@ -1,6 +1,6 @@
 # TRUE Connector FIWARE Data App
 
-##Entities
+## Entities
 
 There are docker files provided for Orion Context Broker, located in doc directory, one for consumer and other for provider. Start those 2 docker files simply by running following command:
 
