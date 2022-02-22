@@ -7,6 +7,7 @@ import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.util.GregorianCalendar;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.xml.datatype.DatatypeFactory;
 
@@ -25,7 +26,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
@@ -36,7 +36,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.fraunhofer.iais.eis.ArtifactRequestMessage;
 import de.fraunhofer.iais.eis.ArtifactRequestMessageBuilder;
 import de.fraunhofer.iais.eis.ArtifactResponseMessage;
+import de.fraunhofer.iais.eis.ConnectorUnavailableMessage;
+import de.fraunhofer.iais.eis.ConnectorUpdateMessage;
+import de.fraunhofer.iais.eis.ContractAgreementMessage;
+import de.fraunhofer.iais.eis.ContractRequestMessage;
+import de.fraunhofer.iais.eis.DescriptionRequestMessage;
 import de.fraunhofer.iais.eis.Message;
+import de.fraunhofer.iais.eis.QueryMessage;
+import de.fraunhofer.iais.eis.TokenFormat;
 import de.fraunhofer.iais.eis.ids.jsonld.Serializer;
 import it.eng.idsa.dataapp.configuration.ECCProperties;
 import it.eng.idsa.dataapp.domain.ProxyRequest;
@@ -46,17 +53,20 @@ import it.eng.idsa.dataapp.service.RecreateFileService;
 import it.eng.idsa.multipart.builder.MultipartMessageBuilder;
 import it.eng.idsa.multipart.domain.MultipartMessage;
 import it.eng.idsa.multipart.processor.MultipartMessageProcessor;
+import it.eng.idsa.multipart.util.DateUtil;
+import it.eng.idsa.multipart.util.UtilMessageService;
 import it.eng.idsa.streamer.WebSocketClientManager;
 import it.eng.idsa.streamer.websocket.receiver.server.FileRecreatorBeanExecutor;
 
 @Service
 public class ProxyServiceImpl implements ProxyService {
 	private static final String MULTIPART = "multipart";
-	private static final String MESSAGE = "message";
+	private static final String MESSAGE_TYPE = "messageType";
 	private static final String PAYLOAD = "payload";
 	private static final String REQUESTED_ARTIFACT = "requestedArtifact";
 	private static final String FORWARD_TO = "Forward-To";
 	private static final String FORWARD_TO_INTERNAL = "Forward-To-Internal";
+	private static final String REQUESTED_ELEMENT = "requestedElement";
 
 	private static final String MESSAGE_AS_HEADERS = "messageAsHeaders";
 
@@ -83,19 +93,25 @@ public class ProxyServiceImpl implements ProxyService {
 		JSONObject jsonObject;
 		try {
 			jsonObject = (JSONObject) parser.parse(body);
+			
 			String multipart =  (String) jsonObject.get(MULTIPART);
 			String forwardTo =  (String) jsonObject.get(FORWARD_TO);
 			String forwardToInternal =  (String) jsonObject.get(FORWARD_TO_INTERNAL);
 			String requestedArtifact = (String) jsonObject.get(REQUESTED_ARTIFACT);
-			JSONObject partJson = (JSONObject) jsonObject.get(MESSAGE);
-			String message =  partJson != null ? partJson.toJSONString().replace("\\/","/") : null;
+			String messageType = (String) jsonObject.get(MESSAGE_TYPE);
+			String requestedElement = (String) jsonObject.get(REQUESTED_ELEMENT);
 			
-			partJson = (JSONObject) jsonObject.get(PAYLOAD);
-			String payload =  partJson != null ? partJson.toJSONString().replace("\\/","/") : null;
+			String payload = null;
+			if(jsonObject.get(PAYLOAD) instanceof String) {
+				payload = ((String) jsonObject.get(PAYLOAD)).replace("\\/","/").replace("\\", "");
+			} else {
+				JSONObject partJson = (JSONObject) jsonObject.get(PAYLOAD);
+				payload =  partJson != null ? partJson.toJSONString().replace("\\/","/") : null;
+			}
 			
 			Map<String, Object> messageAsMap = (JSONObject) jsonObject.get(MESSAGE_AS_HEADERS);
 			
-			return new ProxyRequest(multipart, forwardTo, forwardToInternal, message, payload, requestedArtifact, messageAsMap);
+			return new ProxyRequest(multipart, forwardTo, forwardToInternal, payload, requestedArtifact, messageType, requestedElement);
 		} catch (ParseException e) {
 			logger.error("Error parsing payoad", e);
 		}
@@ -106,25 +122,54 @@ public class ProxyServiceImpl implements ProxyService {
 	public ResponseEntity<String> proxyMultipartMix(ProxyRequest proxyRequest, HttpHeaders httpHeaders)
 			throws URISyntaxException {
 		
-		if(StringUtils.isEmpty(proxyRequest.getMessage())) {
-			logger.error("Missing '{}' part in the request", MESSAGE);
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Message part in body is mandatory for " 
-					+ proxyRequest.getMultipart() + " flow");
+		URI thirdPartyApi = null;
+		String proxyPayload = null;
+		httpHeaders.add(FORWARD_TO, proxyRequest.getForwardTo());
+
+		Message requestMessage = createRequestMessage(proxyRequest.getMessageType(), proxyRequest.getRequestedArtifact(), proxyRequest.getRequestedElement());
+		
+		if(requestMessage != null) {
+			String payload = null;
+			if(requestMessage instanceof ContractRequestMessage && proxyRequest.getPayload() == null) {
+				logger.info("Creating ContractRequest for payload using requested artifact");
+				payload = UtilMessageService.getMessageAsString(
+						UtilMessageService.getContractRequest(URI.create(proxyRequest.getRequestedElement())));
+			} else {
+				logger.info("Using payload from request");
+				payload = proxyRequest.getPayload();
+			}
+			
+			MultipartMessage mm = new MultipartMessageBuilder()
+					.withHeaderContent(requestMessage)
+					.withPayloadContent(payload)
+					.build();
+			proxyPayload = MultipartMessageProcessor.multipartMessagetoString(mm, false, true);
+			
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getMixContext(),
+					null, null);
+			
+		} else if (ConnectorUpdateMessage.class.getSimpleName().equals(proxyRequest.getMessageType())) {
+			logger.info("Broker message - ConnectorUpdateMessage");
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getBrokerRegisterContext(),
+					null, null);
+		} else if (ConnectorUnavailableMessage.class.getSimpleName().equals(proxyRequest.getMessageType())) {
+			logger.info("Broker message - ConnectorUnavailableMessage");
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getBrokerDeleteContext(),
+					null, null);
+		} else if (QueryMessage.class.getSimpleName().equals(proxyRequest.getMessageType())) {
+			logger.info("Broker message - QueryMessage");
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getBrokerQuerryContext(),
+					null, null);
+			proxyPayload = proxyRequest.getPayload();
 		}
 		
-		MultipartMessage mm = new MultipartMessageBuilder()
-				.withHeaderContent(proxyRequest.getMessage())
-				.withPayloadContent(proxyRequest.getPayload())
-				.build();
-		
-		String proxyPayload = MultipartMessageProcessor.multipartMessagetoString(mm, false, true);
-		URI thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
-				eccProperties.getPort(), eccProperties.getMixContext(),
-				null, null);
-		httpHeaders.add(FORWARD_TO, proxyRequest.getForwardTo());
-		HttpEntity<String> requestEntity = new HttpEntity<String>(proxyPayload, httpHeaders);
 		logger.info("Forwarding mix POST request to {}", thirdPartyApi.toString());
 		
+		HttpEntity<String> requestEntity = new HttpEntity<String>(proxyPayload, httpHeaders);
 		ResponseEntity<String> resp = restTemplate.exchange(thirdPartyApi, HttpMethod.POST, requestEntity, String.class);
 		logResponse(resp);
 		return resp;
@@ -134,24 +179,49 @@ public class ProxyServiceImpl implements ProxyService {
 	public ResponseEntity<String> proxyMultipartForm(ProxyRequest proxyRequest, HttpHeaders httpHeaders)
 			throws URISyntaxException {
 		
-		if(StringUtils.isEmpty(proxyRequest.getMessage())) {
-			logger.error("Missing '{}' part in the request", MESSAGE);
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Message part in body is mandatory for " 
-					+ proxyRequest.getMultipart() + " flow");
+		Message requestMessage = createRequestMessage(proxyRequest.getMessageType(), proxyRequest.getRequestedArtifact(), proxyRequest.getRequestedElement());
+		URI thirdPartyApi = null;
+		HttpEntity<LinkedMultiValueMap<String, Object>> requestEntity = null;
+		LinkedMultiValueMap<String, Object> map = new LinkedMultiValueMap<>();
+		httpHeaders.add(FORWARD_TO, proxyRequest.getForwardTo());
+		httpHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+		if (requestMessage != null) {
+			map.add("header", UtilMessageService.getMessageAsString(requestMessage));
+			String payload = null;
+			if(requestMessage instanceof ContractRequestMessage && proxyRequest.getPayload() == null) {
+				logger.info("Creating ContractRequest for payload using requested artifact");
+				payload = UtilMessageService.getMessageAsString(
+						UtilMessageService.getContractRequest(URI.create(proxyRequest.getRequestedElement())));
+			} else {
+				logger.info("Using payload from request");
+				payload = proxyRequest.getPayload();
+			}
+			map.add("payload", payload);
+			
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getFormContext(),
+					null, null);
+		} else if (ConnectorUpdateMessage.class.getSimpleName().equals(proxyRequest.getMessageType())) {
+			logger.info("Broker message - ConnectorUpdateMessage");
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getBrokerRegisterContext(),
+					null, null);
+		} else if (ConnectorUnavailableMessage.class.getSimpleName().equals(proxyRequest.getMessageType())) {
+			logger.info("Broker message - ConnectorUnavailableMessage");
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getBrokerDeleteContext(),
+					null, null);
+		} else if (QueryMessage.class.getSimpleName().equals(proxyRequest.getMessageType())) {
+			logger.info("Broker message - QueryMessage");
+			map.add("payload", proxyRequest.getPayload());
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getBrokerQuerryContext(),
+					null, null);
 		}
 		
-		LinkedMultiValueMap<String, Object> map = new LinkedMultiValueMap<>();
-		map.add("header", proxyRequest.getMessage());
-		map.add("payload", proxyRequest.getPayload());
-		httpHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
-		httpHeaders.add(FORWARD_TO, proxyRequest.getForwardTo());
-		HttpEntity<LinkedMultiValueMap<String, Object>> requestEntity = new HttpEntity<>(map, httpHeaders);
-		
-		URI thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
-				eccProperties.getPort(), eccProperties.getFormContext(),
-				null, null);
-		
 		logger.info("Forwarding form POST request to {}", thirdPartyApi.toString());
+		requestEntity = new HttpEntity<>(map, httpHeaders);
 		ResponseEntity<String> resp = restTemplate.exchange(thirdPartyApi, HttpMethod.POST, requestEntity, String.class);
 		logResponse(resp);
 		return resp;
@@ -164,15 +234,37 @@ public class ProxyServiceImpl implements ProxyService {
 				eccProperties.getPort(), eccProperties.getHeaderContext(),
 				null, null);
 
-		if(CollectionUtils.isEmpty(proxyRequest.getMessageAsHeader())) {
-			logger.error("Missing '{}' part in the request", MESSAGE_AS_HEADERS);
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(MESSAGE_AS_HEADERS + " in body is mandatory for " 
-					+ proxyRequest.getMultipart() + " flow");
-		}
 		logger.info("Forwarding header POST request to {}", thirdPartyApi.toString());
-		proxyRequest.getMessageAsHeader().forEach((k,v) -> httpHeaders.add(k, (String) v));
+		httpHeaders.addAll(createMessageAsHeader(proxyRequest.getMessageType(), proxyRequest.getRequestedArtifact(), proxyRequest.getRequestedElement()));
 		httpHeaders.add(FORWARD_TO, proxyRequest.getForwardTo());
-		HttpEntity<String> requestEntity = new HttpEntity<>(proxyRequest.getPayload(), httpHeaders);
+		
+		String payload = null;
+		if(proxyRequest.getMessageType().contains("ContractRequestMessage") && proxyRequest.getPayload() == null) {
+			logger.info("Creating ContractRequest for payload using requested artifact");
+			payload = UtilMessageService.getMessageAsString(
+					UtilMessageService.getContractRequest(URI.create(proxyRequest.getRequestedElement())));
+		} else {
+			logger.info("Using payload from request");
+			payload = proxyRequest.getPayload();
+		}
+		HttpEntity<String> requestEntity = new HttpEntity<>(payload, httpHeaders);
+		
+		if (ConnectorUpdateMessage.class.getSimpleName().equals(proxyRequest.getMessageType())) {
+			logger.info("Broker message - ConnectorUpdateMessage");
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getBrokerRegisterContext(),
+					null, null);
+		} else if (ConnectorUnavailableMessage.class.getSimpleName().equals(proxyRequest.getMessageType())) {
+		 	logger.info("Broker message - ConnectorUnavailableMessage");
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getBrokerDeleteContext(),
+					null, null);
+		} else if (QueryMessage.class.getSimpleName().equals(proxyRequest.getMessageType())) {
+			logger.info("Broker message - QueryMessage");
+			thirdPartyApi = new URI(eccProperties.getProtocol(), null, eccProperties.getHost(), 
+					eccProperties.getPort(), eccProperties.getBrokerQuerryContext(),
+					null, null);
+		}
 		
 		ResponseEntity<String> resp = restTemplate.exchange(thirdPartyApi, HttpMethod.POST, requestEntity, String.class);
 		logResponse(resp);
@@ -220,6 +312,54 @@ public class ProxyServiceImpl implements ProxyService {
 		}
 	}
 	
+	private Message createRequestMessage(String messageType, String requestedArtifact, String requestedElement) {
+		if(ArtifactRequestMessage.class.getSimpleName().equals(messageType)) {
+			return UtilMessageService.getArtifactRequestMessage(requestedArtifact != null 
+					? URI.create(requestedArtifact) 
+							: UtilMessageService.REQUESTED_ARTIFACT);
+		} else if(ContractAgreementMessage.class.getSimpleName().equals(messageType)) {
+			return UtilMessageService.getContractAgreementMessage();
+		} else if(ContractRequestMessage.class.getSimpleName().equals(messageType)) {
+			return UtilMessageService.getContractRequestMessage();
+		} else if(DescriptionRequestMessage.class.getSimpleName().equals(messageType)) {
+			URI reqEl = requestedElement == null ? null : URI.create(requestedElement);
+			return UtilMessageService.getDescriptionRequestMessage(reqEl);
+		} 
+		return null;
+	}
+	
+	private HttpHeaders createMessageAsHeader(String messageType, String requestedArtifact, String requestedElement) {
+		HttpHeaders httpHeaders = new HttpHeaders();
+		if(ArtifactRequestMessage.class.getSimpleName().equals(messageType)) {
+			httpHeaders.add("IDS-Messagetype", "ids:" + ArtifactRequestMessage.class.getSimpleName());
+			httpHeaders.add("IDS-Id", "https://w3id.org/idsa/autogen/" + ArtifactRequestMessage.class.getSimpleName() + "/" + UUID.randomUUID());
+			httpHeaders.add("IDS-RequestedArtifact", requestedArtifact != null ? requestedArtifact : UtilMessageService.REQUESTED_ARTIFACT.toString());
+		} else if(ContractRequestMessage.class.getSimpleName().equals(messageType)) {
+			httpHeaders.add("IDS-Messagetype", "ids:" + ContractRequestMessage.class.getSimpleName());
+			httpHeaders.add("IDS-Id", "https://w3id.org/idsa/autogen/" + ContractRequestMessage.class.getSimpleName() + "/" + UUID.randomUUID());
+		} else if(ContractAgreementMessage.class.getSimpleName().equals(messageType)) {
+			httpHeaders.add("IDS-Messagetype", "ids:" + ContractAgreementMessage.class.getSimpleName());
+			httpHeaders.add("IDS-Id", "https://w3id.org/idsa/autogen/" + ContractAgreementMessage.class.getSimpleName() + "/" + UUID.randomUUID());
+		} else if(DescriptionRequestMessage.class.getSimpleName().equals(messageType)) {
+			httpHeaders.add("IDS-Messagetype", "ids:" + DescriptionRequestMessage.class.getSimpleName());
+			httpHeaders.add("IDS-Id", "https://w3id.org/idsa/autogen/" + DescriptionRequestMessage.class.getSimpleName() + "/" + UUID.randomUUID());
+			httpHeaders.add("IDS-RequestedElement", requestedElement);
+		}
+		
+		httpHeaders.add("IDS-ModelVersion", "4.1.0");
+        httpHeaders.add("IDS-TransferContract", UtilMessageService.TRANSFER_CONTRACT.toString());
+		httpHeaders.add("IDS-Issued", DateUtil.now().toXMLFormat());
+		httpHeaders.add("IDS-IssuerConnector", "http://w3id.org/engrd/connector/");
+		httpHeaders.add("IDS-SenderAgent", "http://sender.agent.com/");
+		
+		httpHeaders.add("IDS-SecurityToken-Type", "ids:DynamicAttributeToken");
+		httpHeaders.add("IDS-SecurityToken-Id", "https://w3id.org/idsa/autogen/" + UUID.randomUUID());
+		httpHeaders.add("IDS-SecurityToken-TokenFormat", TokenFormat.JWT.getId().toString());
+		httpHeaders.add("IDS-SecurityToken-TokenValue", UtilMessageService.TOKEN_VALUE);
+		
+		return httpHeaders;
+	}
+	
 	private void logResponse(ResponseEntity<String> resp) {
 		logger.info("Response received with status code {}", resp.getStatusCode());
 		logger.info("Response headers\n{}", resp.getHeaders());
@@ -261,7 +401,7 @@ public class ProxyServiceImpl implements ProxyService {
 		String responseMessage = null;
 		try {
 			responseMessage = WebSocketClientManager.getMessageWebSocketSender()
-					.sendMultipartMessageWebSocketOverHttps(proxyRequest.getMessage(), proxyRequest.getPayload(), forwardToInternal);
+					.sendMultipartMessageWebSocketOverHttps(proxyRequest.getMessageType(), proxyRequest.getPayload(), forwardToInternal);
 		} catch (Exception exc) {
 			logger.error("Error while processing request {}", exc);
 			 throw new ResponseStatusException(

@@ -2,6 +2,7 @@ package it.eng.idsa.dataapp.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import springfox.documentation.builders.PathSelectors;
@@ -27,10 +28,15 @@ public class SwaggerConfig {
 				.paths(PathSelectors.any()).
 				build();
 	}
-	
+
 	@Bean
 	public RestTemplate getRestTemplate() {
-		return new RestTemplate();
+//		return new RestTemplate();
+		// fix for Invalid HTTP method: PATCH
+		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+		requestFactory.setReadTimeout(600000);
+		requestFactory.setConnectTimeout(600000);
+		return new RestTemplate(requestFactory);
 	}
 	
 }

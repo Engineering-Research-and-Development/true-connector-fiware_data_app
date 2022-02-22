@@ -1,16 +1,16 @@
 # TRUE Connector FIWARE Data App
 
-##Entities
+##Context Broker - Entities
 
 There are docker files provided for Orion Context Broker, located in doc directory, one for consumer and other for provider. Start those 2 docker files simply by running following command:
 
 ```
-docker-compose up
+docker-compose -f docker-compose-cb.yml up
 ```
 for consumer, and
 
 ```
-docker-compose -f docker-compose-provider.yml up
+docker-compose -f docker-compose-provider-cb.yml up
 ```
 for provider.
 
