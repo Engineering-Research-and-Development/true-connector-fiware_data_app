@@ -1,6 +1,8 @@
 # TRUE Connector FIWARE Data App
 
-##Context Broker - Entities
+NOTE: At the moment of writing only HTTP is supported by the Orion Context Broker which means that all endpoints in the requests must be HTTP (Connection between DataApps and Brokers must be HTTP)
+
+## Context Broker - Entities
 
 There are docker files provided for Orion Context Broker, located in doc directory, one for consumer and other for provider. Start those 2 docker files simply by running following command:
 
@@ -19,14 +21,13 @@ NOTE: on Unix based OS, you might need to have admin/sudo rights to run docker.
 
 Once those 2 containers are up and running, you can access Orion API using following URL:
 
-
-**Consumer Orion ContextBroker**
+**Consumer Orion Context Broker**
 
 ```
 http://localhost:1026/ngsi-ld/v1/entities
 ```
 
-**Provider Orion ContextBroker**
+**Provider Orion Context Broker**
 
 ```
 http://localhost:1027/ngsi-ld/v1/entities
@@ -105,34 +106,34 @@ curl --location --request POST 'http://localhost:1026/ngsi-ld/v1/csourceRegistra
             ]
         }
     ],
-    "endpoint": "http://172.30.32.1:8083/"
+    "endpoint": "http://IPADRESS_FROM_CONSUMER_DATA_APP:8084/"
 }'
 
 ```
 
-This registration will redirect request for entity with id **urn:ngsi-ld:Building:store001** to the endpoint **http://172.30.32.1:8083/**, which iz FIWARE dataApp, responsible for packing request and sending it to ECC, and unpacking response.
+This registration will redirect request for entity with id **urn:ngsi-ld:Building:store001** to the endpoint **http://IPADRESS_FROM_CONSUMER_DATA_APP:8084**,(for example Docker IP adress in format x.x.x.x) which iz FIWARE consumer dataApp, responsible for packing request and sending it to ECC, and unpacking response.
 
-Once this registration is in place, you can start FIWARE dataApp and Consumer and Provider ECC, and request entity with id **urn:ngsi-ld:Building:store001** from Consumer ContextBroker, by sending GET request to:
+Once this registration is in place you can request entity with id **urn:ngsi-ld:Building:store001** from Consumer ContextBroker, by sending GET request to:
 
 ```
 http://localhost:1026/ngsi-ld/v1/entities/urn:ngsi-ld:Building:store001
 
 ```
 
-NOTE that port is 1026, for Consumer ContextBroker.
+NOTE that the port is 1026, for Consumer ContextBroker.
 
 
-##DataApp
+## DataApp
 
 2 properties are used to configure connection:
 
-**application.fiware.contextBroker.provider.url=http://localhost:1027**
+**application.fiware.contextBroker.provider.url=http://IPADRESS_FROM_PROVIDER_BROKER:1027** (for example Docker IP adress in format x.x.x.x)
 
 Used to configure connection between provider DataApp and Provider Orion ContextBroker
 
-**application.fiware.ecc.provider.url=https://localhost:8890/data**
+**application.fiware.ecc.provider.url=https://ecc-provider:8889/data**
 
-Configure B-endpoint of Provider Connector (aka Forward-To)
+Configure B-endpoint of Provider Connector (aka Forward-To; this one can be HTTPS it depends on the connection between ECCs)
 
 
 

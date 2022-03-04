@@ -1,6 +1,5 @@
 package it.eng.idsa.dataapp.web.rest;
 
-import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -23,11 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import de.fraunhofer.iais.eis.ArtifactRequestMessage;
 import it.eng.idsa.dataapp.domain.ProxyRequest;
 import it.eng.idsa.dataapp.model.OrionRequest;
 import it.eng.idsa.dataapp.service.ProxyService;
-import it.eng.idsa.multipart.processor.MultipartMessageProcessor;
-import it.eng.idsa.multipart.util.UtilMessageService;
 
 @RestController
 @RequestMapping({ "/ngsi-ld/v1" })
@@ -63,18 +61,10 @@ public class OrionContextBrokerController {
 				providerURL, 
 				null, 
 				// TODO update logic to pass some ID that will be used for UsageControl as requestedArtifact
-				getMessageAsString(UtilMessageService.getArtifactRequestMessage()), 
 				mapper.writeValueAsString(orionRequest), 
-				null, null);
+				null, 
+				ArtifactRequestMessage.class.getSimpleName(), 
+				null);
 		return proxyService.convertToOrionResponse(proxyService.proxyMultipartForm(proxyRequest, httpHeaders));
-	}
-	
-	private String getMessageAsString(Object message) {
-		try {
-			return MultipartMessageProcessor.serializeToJsonLD(message);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return null;
 	}
 }
