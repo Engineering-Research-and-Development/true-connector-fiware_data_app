@@ -123,7 +123,7 @@ http://localhost:1026/ngsi-ld/v1/entities/urn:ngsi-ld:Building:store001
 NOTE that the port is 1026, for Consumer ContextBroker.
 
 
-##DataApp
+## DataApp
 
 2 properties are used to configure connection:
 
