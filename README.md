@@ -4,6 +4,22 @@ NOTE: At the moment of writing only HTTP is supported by the Orion Context Broke
 
 ## Context Broker - Entities
 
+There are docker files provided for Orion Context Broker, located in doc directory, one for consumer and other for provider. Start those 2 docker files simply by running following command:
+
+```
+docker-compose -f docker-compose-cb.yml up
+```
+for consumer, and
+
+```
+docker-compose -f docker-compose-provider-cb.yml up
+```
+for provider.
+
+NOTE: on Unix based OS, you might need to have admin/sudo rights to run docker.
+
+
+Once those 2 containers are up and running, you can access Orion API using following URL:
 
 **Consumer Orion Context Broker**
 
