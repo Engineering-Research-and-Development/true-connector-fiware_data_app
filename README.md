@@ -2,16 +2,16 @@
 
 NOTE: At the moment of writing only HTTP is supported by the Orion Context Broker which means that all endpoints in the requests must be HTTP (Connection between DataApps and Brokers must be HTTP)
 
-##Context Broker - Entities
+## Context Broker - Entities
 
 
-**Consumer Orion ContextBroker**
+**Consumer Orion Context Broker**
 
 ```
 http://localhost:1026/ngsi-ld/v1/entities
 ```
 
-**Provider Orion ContextBroker**
+**Provider Orion Context Broker**
 
 ```
 http://localhost:1027/ngsi-ld/v1/entities
