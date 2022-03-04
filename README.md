@@ -95,7 +95,7 @@ curl --location --request POST 'http://localhost:1026/ngsi-ld/v1/csourceRegistra
 
 ```
 
-This registration will redirect request for entity with id **urn:ngsi-ld:Building:store001** to the endpoint **http://IPADRESS_FROM_CONSUMER_DATA_APP:8084**,(Docker IP adress in format x.x.x.x) which iz FIWARE consumer dataApp, responsible for packing request and sending it to ECC, and unpacking response.
+This registration will redirect request for entity with id **urn:ngsi-ld:Building:store001** to the endpoint **http://IPADRESS_FROM_CONSUMER_DATA_APP:8084**,(for example Docker IP adress in format x.x.x.x) which iz FIWARE consumer dataApp, responsible for packing request and sending it to ECC, and unpacking response.
 
 Once this registration is in place you can request entity with id **urn:ngsi-ld:Building:store001** from Consumer ContextBroker, by sending GET request to:
 
@@ -111,11 +111,11 @@ NOTE that the port is 1026, for Consumer ContextBroker.
 
 2 properties are used to configure connection:
 
-**application.fiware.contextBroker.provider.url=http://orion:1027**
+**application.fiware.contextBroker.provider.url=http://IPADRESS_FROM_PROVIDER_BROKER:1027** (for example Docker IP adress in format x.x.x.x)
 
 Used to configure connection between provider DataApp and Provider Orion ContextBroker
 
-**application.fiware.ecc.provider.url=https://ecc-provider:8890/data**
+**application.fiware.ecc.provider.url=https://ecc-provider:8889/data**
 
 Configure B-endpoint of Provider Connector (aka Forward-To; this one can be HTTPS it depends on the connection between ECCs)
 
